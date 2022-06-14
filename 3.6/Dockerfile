@@ -1,7 +1,7 @@
 FROM ubuntu:xenial
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
-RUN groupadd -r mongodb && useradd -r -g mongodb mongodb
+RUN groupadd -r mongodb && useradd -m -r -g mongodb mongodb
 
 RUN set -eux; \
 	apt-get update; \
@@ -37,15 +37,15 @@ RUN set -ex; \
 	rm -rf /var/lib/apt/lists/*; \
 	\
 	dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')"; \
-	wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch"; \
-	wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch.asc"; \
+	wget -O /usr/local/bin/gosu "http://10.10.16.254/iesp/docker-build/-/raw/main/gosu-$dpkgArch"; \
+	wget -O /usr/local/bin/gosu.asc "http://10.10.16.254/iesp/docker-build/-/raw/main/gosu-$dpkgArch.asc"; \
 	export GNUPGHOME="$(mktemp -d)"; \
 	gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4; \
 	gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu; \
 	command -v gpgconf && gpgconf --kill all || :; \
 	rm -r "$GNUPGHOME" /usr/local/bin/gosu.asc; \
 	\
-	wget -O /js-yaml.js "https://github.com/nodeca/js-yaml/raw/${JSYAML_VERSION}/dist/js-yaml.js"; \
+	wget -O /js-yaml.js "http://10.10.16.254/iesp/docker-build/-/raw/main/js-yaml.js?inline=false"; \
 # TODO some sort of download verification here
 	\
 	apt-mark auto '.*' > /dev/null; \
@@ -59,16 +59,16 @@ RUN set -ex; \
 
 RUN mkdir /docker-entrypoint-initdb.d
 
-ENV GPG_KEYS 2930ADAE8CAF5059EE73BB4B58712A2291FA4AD5
-RUN set -ex; \
-	export GNUPGHOME="$(mktemp -d)"; \
-	for key in $GPG_KEYS; do \
-		gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
-	done; \
-	gpg --batch --export $GPG_KEYS > /etc/apt/trusted.gpg.d/mongodb.gpg; \
-	command -v gpgconf && gpgconf --kill all || :; \
-	rm -r "$GNUPGHOME"; \
-	apt-key list
+#ENV GPG_KEYS 2930ADAE8CAF5059EE73BB4B58712A2291FA4AD5
+#RUN set -ex; \
+#	export GNUPGHOME="$(mktemp -d)"; \
+#	for key in $GPG_KEYS; do \
+#		gpg --batch --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key"; \
+#	done; \
+#	gpg --batch --export $GPG_KEYS > /etc/apt/trusted.gpg.d/mongodb.gpg; \
+#	command -v gpgconf && gpgconf --kill all || :; \
+#	rm -r "$GNUPGHOME"; \
+#	apt-key list
 
 # Allow build-time overrides (eg. to build image with MongoDB Enterprise version)
 # Options for MONGO_PACKAGE: mongodb-org OR mongodb-enterprise
@@ -77,7 +77,6 @@ RUN set -ex; \
 ARG MONGO_PACKAGE=mongodb-org
 ARG MONGO_REPO=repo.mongodb.org
 ENV MONGO_PACKAGE=${MONGO_PACKAGE} MONGO_REPO=${MONGO_REPO}
-
 ENV MONGO_MAJOR 3.6
 ENV MONGO_VERSION 3.6.23
 # bashbrew-architectures:amd64 arm64v8
@@ -94,7 +93,7 @@ RUN set -x \
 		${MONGO_PACKAGE}-server=$MONGO_VERSION \
 		${MONGO_PACKAGE}-shell=$MONGO_VERSION \
 		${MONGO_PACKAGE}-mongos=$MONGO_VERSION \
-		${MONGO_PACKAGE}-tools=$MONGO_VERSION \
+		${MONGO_PACKAGE}-tools=$MONGO_VERSION --allow-unauthenticated \
 	&& rm -f /usr/local/bin/systemctl \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& rm -rf /var/lib/mongodb \
@@ -107,5 +106,5 @@ VOLUME /data/db /data/configdb
 COPY docker-entrypoint.sh /usr/local/bin/
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-EXPOSE 27017
+EXPOSE 37017
 CMD ["mongod"]
